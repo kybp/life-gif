@@ -5,16 +5,11 @@
   (:export :life-gif))
 (in-package :life-gif)
 
-(defvar *dead-color*  :darkgreen)
-(defvar *alive-color* :yellow)
-(defvar *dead-rgb*    #x006400)
-(defvar *alive-rgb*   #xffff00)
-
-(defun button-marked-p (button)
-  (eql (char (text button) 0) #\X))
+(defvar *dead-rgb*  #x006400)
+(defvar *alive-rgb* #xffff00)
 
 (defun toggle-button (button)
-  (setf (text button) (if (button-marked-p button) " " "X")))
+  (setf (text button) (if (eql (char (text button) 0) #\X) " " "X")))
 
 (defclass life ()
   ((width  :reader width  :initarg :width)
@@ -45,13 +40,6 @@
 (defun cell-alive-p (life x y)
   (cell life x y))
 
-(defun life-from-buttons (buttons width height)
-  (loop with life = (make-life width height)
-     for i from 0 and button across buttons
-     for x = (floor i height) and y = (mod i height) do
-       (setf (cell life x y) (button-marked-p button))
-     finally (return life)))
-
 (defun update-buttons (buttons life)
   (let ((i 0))
     (dotimes (x (width life))
@@ -68,7 +56,7 @@
                             (make-instance 'button :text " " :width 1)))
            (buttons*    (make-array (* width height)))
            (buttons     (map-into buttons* new-button))
-           (life        (life-from-buttons buttons width height))
+           (life        (make-life width height))
            (prev-button (make-instance 'button :text "Prev" :state :disabled))
            (next-button (make-instance 'button :text "Next"))
            (delay-label (make-instance 'label :text "Delay"))
@@ -103,7 +91,7 @@
       (bind gif-button "<Button-1>"
             #'(lambda (event)
                 (declare (ignore event))
-                (generate-gif (life-from-buttons buttons width height)
+                (generate-gif life
                               (floor (or (value frame-scale) 1))
                               (floor (or (value size-scale)  1))
                               (floor (or (value delay-scale) 1))
