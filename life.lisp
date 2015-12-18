@@ -5,11 +5,14 @@
   (:export :life-gif))
 (in-package :life-gif)
 
-(defvar *dead-rgb*  #x006400)
-(defvar *alive-rgb* #xffff00)
+;;; Util
 
-(defun toggle-button (button)
-  (setf (text button) (if (eql (char (text button) 0) #\X) " " "X")))
+(defun wrap (x min max)
+  (cond ((< x min) max)
+        ((> x max) min)
+        (t x)))
+
+;;; Life
 
 (defclass life ()
   ((width  :reader width  :initarg :width)
@@ -21,11 +24,6 @@
          (cells (make-array (list width height) :initial-element nil)))
     (setf (slot-value life 'cells) cells)
     life))
-
-(defun wrap (x min max)
-  (cond ((< x min) max)
-        ((> x max) min)
-        (t x)))
 
 (defun cell (life x y)
   (let ((wrapped-x (wrap x 0 (1- (width  life))))
@@ -40,13 +38,22 @@
 (defun cell-alive-p (life x y)
   (cell life x y))
 
-(defun update-buttons (buttons life)
-  (let ((i 0))
-    (dotimes (x (width life))
+(defun neighbours (life x y)
+  (loop for i from (1- x) to (1+ x)
+     sum (loop for j from (1- y) to (1+ y)
+            count (and (cell-alive-p life i j)
+                       (not (and (= i x) (= j y)))))))
+
+(defun next-generation (life)
+  (let ((next (make-life (width life) (height life))))
+    (dotimes (x (width life) next)
       (dotimes (y (height life))
-        (setf (text (elt buttons i))
-              (if (cell-alive-p life x y) "X" " "))
-        (incf i)))))
+        (let ((neighbours (neighbours life x y)))
+          (if (cell-alive-p life x y)
+              (setf (cell next x y) (member neighbours '(2 3)))
+              (setf (cell next x y) (= neighbours 3))))))))
+
+;;; UI
 
 (defparameter *generations* nil)
 
@@ -77,9 +84,10 @@
       (bind prev-button "<Button-1>"
             #'(lambda (event)
                 (declare (ignore event))
-                (update-buttons buttons (pop *generations*))
-                (when (null *generations*)
-                  (configure prev-button :state :disabled))))
+                (unless (null *generations*)
+                  (update-buttons buttons (pop *generations*))
+                  (when (null *generations*)
+                    (configure prev-button :state :disabled)))))
       (bind next-button "<Button-1>"
             #'(lambda (event)
                 (declare (ignore event))
@@ -92,7 +100,7 @@
             #'(lambda (event)
                 (declare (ignore event))
                 (let* ((path (text file-entry))
-                       (dir  (cl-fad:pathname-parent-directory path)))
+                       (dir  (cl-fad:pathname-directory-pathname path)))
                   (if (and (probe-file dir)
                            (not (cl-fad:directory-pathname-p path)))
                       (generate-gif life
@@ -114,20 +122,21 @@
                        (toggle-button (elt buttons i)))))
            (grid button y (+ x 2))))))
 
-(defun neighbours (life x y)
-  (loop for i from (1- x) to (1+ x)
-     sum (loop for j from (1- y) to (1+ y)
-            count (and (cell-alive-p life i j)
-                       (not (and (= i x) (= j y)))))))
+(defun toggle-button (button)
+  (setf (text button) (if (eql (char (text button) 0) #\X) " " "X")))
 
-(defun next-generation (life)
-  (let ((next (make-life (width life) (height life))))
-    (dotimes (x (width life) next)
+(defun update-buttons (buttons life)
+  (let ((i 0))
+    (dotimes (x (width life))
       (dotimes (y (height life))
-        (let ((neighbours (neighbours life x y)))
-          (if (cell-alive-p life x y)
-              (setf (cell next x y) (member neighbours '(2 3)))
-              (setf (cell next x y) (= neighbours 3))))))))
+        (setf (text (elt buttons i))
+              (if (cell-alive-p life x y) "X" " "))
+        (incf i)))))
+
+;;; GIF generation
+
+(defvar *dead-rgb*  #x006400)
+(defvar *alive-rgb* #xffff00)
 
 (defun generate-frame (life image cell-size)
   (dotimes (x (width life))
