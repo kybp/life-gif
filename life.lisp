@@ -91,11 +91,17 @@
       (bind gif-button "<Button-1>"
             #'(lambda (event)
                 (declare (ignore event))
-                (generate-gif life
-                              (floor (or (value frame-scale) 1))
-                              (floor (or (value size-scale)  1))
-                              (floor (or (value delay-scale) 1))
-                              (text file-entry))))
+                (let* ((path (text file-entry))
+                       (dir  (cl-fad:pathname-parent-directory path)))
+                  (if (and (probe-file dir)
+                           (not (cl-fad:directory-pathname-p path)))
+                      (generate-gif life
+                                    (floor (or (value frame-scale) 2))
+                                    (floor (or (value size-scale)  1))
+                                    (floor (or (value delay-scale) 1))
+                                    path)
+                      (message-box (format nil "Invalid filename: ~s" path)
+                                   "Error" :ok :error)))))
       (loop
          for button across buttons
          for i from 0
