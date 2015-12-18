@@ -4,5 +4,5 @@
 
 (defsystem :life-gif
   :description "Generate animated GIFs of Conway's Game of Life"
-  :depends-on (:ltk :skippy)
+  :depends-on (:cl-fad :ltk :skippy)
   :components ((:file "life")))
